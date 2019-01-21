@@ -11,6 +11,32 @@ class Handler(Hs.BaseHTTPRequestHandler):
     def do_GET(self):
         print("Requested path '{p}' from '{c}'".format(p=self.path, c=self.client_address))
 
+        mpPathFn = {
+                'login' : self.OnLogin,
+                'menu' : self.OnMenu,
+                'task' : self.OnTask,
+                'hint' : self.OnHint,
+            }
+
+        # Tasks (which I think map to URLs in some way):
+        # - Request login (maybe?)
+        # - Login
+        # - View problem list (include progress?)
+        # - View specific problem
+        # - Post answer to specific problem (only if not already solved?)
+        # - View hint chain on a specific problem
+
+        # Dispatch the request to the appropriate function
+
+        lPart = self.path.split('/')
+        assert lPart[0] == ''
+        target = lPart[1]
+        args = lPart[2:]
+
+        fn = mpPathFn.get(target, self.OnError)
+        assert fn is not None
+        fn(args)
+
         # indicate that things worked (should only do this for URLs that make sense, though)
 
         self.send_response(200)
@@ -28,6 +54,11 @@ class Handler(Hs.BaseHTTPRequestHandler):
         self.wfile.write(b'<body>\n')
         self.wfile.write(b'<p>There is nothing to see here yet</p>\n')
         self.wfile.write(bytes('<p>Well, except that you asked for <pre>{p}</pre> from <pre>{c}</pre></p>\n'.format(p=self.path, c=self.client_address), 'ascii'))
+        self.wfile.write(b'<p>Here are some things you can try to do:</p>\n')
+        self.wfile.write(b'<ul>\n')
+        for link in mpPathFn.keys():
+            self.wfile.write(bytes('<li><a href="/{l}/{l}">{l}</a></li>\n'.format(l=link), 'utf-8'))
+        self.wfile.write(b'</ul>\n')
         self.wfile.write(b'</body>\n')
         self.wfile.write(b'</html>\n')
 
@@ -35,6 +66,36 @@ class Handler(Hs.BaseHTTPRequestHandler):
         print("Requested head '{p}' from '{c}'".format(p=self.path, c=self.client_address))
 
         self.send_error(404, 'We do not handle this yet')
+
+    def do_POST(self):
+        print("Requested post '{p}' from '{c}'".format(p=self.path, c=self.client_address))
+
+        self.send_error(404, 'We do not handle this yet')
+
+    def OnLogin(self, lPart):
+        print("Got login request with {a}".format(a=lPart))
+
+        # TODO
+
+    def OnMenu(self, lPart):
+        print("Got menu request with {a}".format(a=lPart))
+
+        # TODO
+
+    def OnTask(self, lPart):
+        print("Got task request with {a}".format(a=lPart))
+
+        # TODO
+
+    def OnHint(self, lPart):
+        print("Got hint request with {a}".format(a=lPart))
+
+        # TODO
+
+    def OnError(self, lPart):
+        print("Got error request with {a}".format(a=lPart))
+
+        # TODO
 
 if __name__ == '__main__':
 
