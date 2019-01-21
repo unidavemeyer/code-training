@@ -1,6 +1,7 @@
 # python3 code training server
 
 import http.server as Hs
+import xml.etree.ElementTree as ET
 
 
 
@@ -12,6 +13,7 @@ class Handler(Hs.BaseHTTPRequestHandler):
         print("Requested path '{p}' from '{c}'".format(p=self.path, c=self.client_address))
 
         mpPathFn = {
+                '' : self.OnHome,
                 'login' : self.OnLogin,
                 'menu' : self.OnMenu,
                 'task' : self.OnTask,
@@ -35,9 +37,12 @@ class Handler(Hs.BaseHTTPRequestHandler):
 
         fn = mpPathFn.get(target, self.OnError)
         assert fn is not None
-        fn(args)
+        if fn(args):
+            return
 
         # indicate that things worked (should only do this for URLs that make sense, though)
+
+        # TODO: switch to OnError?
 
         self.send_response(200)
         self.end_headers()
@@ -71,6 +76,46 @@ class Handler(Hs.BaseHTTPRequestHandler):
         print("Requested post '{p}' from '{c}'".format(p=self.path, c=self.client_address))
 
         self.send_error(404, 'We do not handle this yet')
+
+    def TreeBasic(self):
+        html = ET.Element('html')
+        html.append(ET.Element('head'))
+        html[-1].append(ET.Element('title'))
+        html.append(ET.Element('body'))
+
+        return ET.ElementTree(html)
+
+    def OnHome(self, lPart):
+        print("Got home request with {a}".format(a=lPart))
+
+        # this method isn't really any better than just raw writing stuff. :/
+
+        tree = self.TreeBasic()
+        tree.find('head/title').text = 'Code Challenge Home'
+
+        body = tree.find('body')
+        body.append(ET.Element('h1'))
+        body[-1].text = 'Welcome'
+
+        body.append(ET.Element('p'))
+        body[-1].text = 'Coding challenges await you. Are you up for the challenge?'
+
+        body.append(ET.Element('ol'))
+        ol = body[-1]
+
+        ol.append(ET.Element('li'))
+        ol[-1].text = 'Option the first'
+
+        ol.append(ET.Element('li'))
+        ol[-1].text = 'Option numero dos'
+
+        # send back the response
+
+        self.send_response(200)
+        self.end_headers()
+        tree.write(self.wfile, method='html')
+
+        return True
 
     def OnLogin(self, lPart):
         print("Got login request with {a}".format(a=lPart))
