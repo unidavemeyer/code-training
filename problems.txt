@@ -1,0 +1,55 @@
+Example problems that might be fun to do:
+
+1.0 The O Trolls
+
+TEXT:
+
+The Owls of the forest have sent us an important message. Unfortunately, though, the O Trolls got to the
+message before we could see it, and have added a whole bunch of "o" characters to the message so we can't
+figure out what the original message was. Can you count how many "o" characters are in the message for us?
+
+SUBMIT:
+
+How many o characters are in the message?
+
+HINTS:
+
+- In python, you can do this:
+	for ch in "hello":
+		print(ch)
+
+- In python, you can do this:
+	if ch == "a":
+		print("Saw an a")
+
+- In python, you can do this:
+	c = 1
+	c += 1
+	print("c is now {}".format(c))
+
+1.1 The O Trolls, Part 2
+
+TEXT:
+
+After counting up the o characters, we realized that the message the Owls sent us must have had some
+o characters to begin with, so we can't just remove all of the o's or we won't know whether they want
+to see us soon or see our son. Luckily, the O Trolls are so fond of o characters that they will always
+add at least three o's in a row when they add them. Can you figure out how many places in the message
+the O Trolls messed things up?
+
+SUBMIT:
+
+How many places did the O Trolls add o's to the message?
+
+HINTS:
+
+- In python, you can do this:
+	s = "some string"
+	print("The first letter is {}".format(s[0]))
+	print("The second letter is {}".format(s[1]))
+
+- In python, you can do this:
+	i = 1
+	s = "some string"
+	if s[i] == s[i + 1]:
+		print("Some characters matched!")
