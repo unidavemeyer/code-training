@@ -24,7 +24,8 @@ class Challenge:
 
 	def LHint(self):
 		"""Returns the list of hints; each hint is a valid HTML fragment
-		that could be included in a page"""
+		that could be included in a page; order is used to provide hints
+		to the user sequentially."""
 
 		return [ "<p>No first hint</p>", "<p>No second hint</p>" ]
 
