@@ -36,15 +36,65 @@ s_strLoginFailed = """
 """
 
 s_strUserPage = """
+<html>
+<head>
+	<title>{username} Status</title>
+</head>
+<body>
+	<p>Available challenges:</p>
+	<ul>
+	{challenges}
+	</ul>
+	<p>Completed challenges:</p>
+	<ul>
+	{completed}
+	</ul>
+</body>
+</html>
 """
 
 def UserPage(session):
 	"""Return the page content formatted with the session for the user's page"""
 
-	# TODO: format with session
-	# TODO: show information with current links (solved, next)
+	# TODO: username as nice text of user name
+	# TODO: challenges as <li> items block (has surrounding <ul> already)
+	# TODO: completed as <li> items block (has surrounding <ul> already>
 
-	return s_strUserPage.format()
+	username = 'SampleUser'
+	challenges = '<li>Nothing yet</li>\n'
+	completed = '<li>Nothing yet</li>\n'
+
+	return s_strUserPage.format(
+							username=username,
+							challenges=challenges,
+							completed=completed)
+
+def SessionCreate(lLogin):
+	"""Generate a session for the given login information, if valid, and return the associated session
+	object. Failure means we return None instead."""
+
+	# TODO: validate login credentials
+	#	- based on some reading, it sounds like I should not just salt and hash
+	#	- salting is good, but needs long salt
+	#	- because of long salt, salt needs to be stored along with hash (!!)
+	#	- fast hash algo means that if salt and hash are found, crack happens
+	#	- want "slow" algo to convert pw + salt -> hash, such as argon2, etc.
+	#	- may be able to use hashlib.pdkf2_hmac or hashlib.scrypt to do this, but need more research
+	# TODO: expire any existing sessions for that login
+	# TODO: generate and record a new session object
+	# TODO: return the associated session object
+
+	return None
+
+def SessionFind(sid):
+	"""Look up the session with the given sid. If the session cannot be found or has timed out, will
+	return None instead."""
+
+	# TODO: look up the given session by the given sid
+	# TODO: validate the expiration details for the session
+	# TODO: return the associated session object
+
+	return None
 
 
 
@@ -58,7 +108,7 @@ class Handler(Hs.BaseHTTPRequestHandler):
 		mpPathFn = {
 				'' : self.OnHome,
 				'login' : self.OnLogin,
-				'menu' : self.OnMenu,
+				'user' : self.OnUser,
 				'task' : self.OnTask,
 				'hint' : self.OnHint,
 			}
@@ -200,12 +250,26 @@ class Handler(Hs.BaseHTTPRequestHandler):
 
 		return False
 
-	def OnMenu(self, lPart):
-		print("Got menu request with {a}".format(a=lPart))
+	def OnUser(self, lPart):
 
-		# TODO
+		if len(lPart) != 1:
+			# TODO: report that there was an error
 
-		return False
+			return False
+
+		session = SessionFind(lPart[0])
+		if not session:
+			# TODO: report that there was an error
+
+			return False
+
+		# send back the user's page
+
+		self.send_response(200)
+		self.end_headers()
+		self.wfile.write(UserPage(session))
+
+		return True
 
 	def OnTask(self, lPart):
 		print("Got task request with {a}".format(a=lPart))
