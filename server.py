@@ -5,6 +5,24 @@ import xml.etree.ElementTree as ET
 
 # various pages
 
+s_strHome = """
+<html>
+<head>
+	<title>Code Challenge Home</title>
+</head>
+<body>
+	<h1>Welcome</h1>
+	<p>Coding challenges await you. Are you up for the challenge?</p>
+	<ol>
+		<li><a href="/login">Login</a></li>
+		<li><a href="/user">User</a> (won't work)</li>
+		<li><a href="/task">Task</a> (won't work)</li>
+		<li><a href="/hint">Hint</a> (won't work)</li>
+	</ol>
+</body>
+</html>
+"""
+
 s_strLogin = """
 <html>
 <head>
@@ -71,9 +89,11 @@ def UserPage(session):
 							challenges=challenges,
 							completed=completed)
 
-def SessionCreate(lLogin):
+def SessionCreate(username, password):
 	"""Generate a session for the given login information, if valid, and return the associated session
 	object. Failure means we return None instead."""
+
+	print("session asked about '{u}' with '{p}'".format(u=username, p=password))
 
 	# TODO: validate login credentials
 	#	- based on some reading, it sounds like I should not just salt and hash
@@ -127,8 +147,7 @@ class Handler(Hs.BaseHTTPRequestHandler):
 		args = lPart[2:]
 
 		fn = mpPathFn.get(target, None)
-		assert fn is not None
-		if fn(args):
+		if fn is not None and fn(args):
 			return
 
 		# indicate that things worked (should only do this for URLs that make sense, though)
@@ -165,19 +184,20 @@ class Handler(Hs.BaseHTTPRequestHandler):
 		self.send_error(404, 'We do not handle this yet')
 
 	def do_POST(self):
-		print("Requested post '{p}' from '{c}'".format(p=self.path, c=self.client_address))
-		print("  requestline", self.requestline)
-		print("  command", self.command)
-		print("  path", self.path)
-		print("  rfile", self.rfile)
 
 		mpPathFn = {
 				'login' : self.OnLoginPost,
 			}
 
-		# TODO: unpack post data
+		# unpack post data
 
-		args = ()
+		# TODO: fix to pay attention to Content-Type header (currently assumes application/x-www-form-urlencoded)
+
+		cBRead = int(self.headers.get('Content-Length', 0))
+		strIn = self.rfile.read(cBRead).decode('ascii')
+
+		parts = strIn.split('&')
+		post = { part.split('=')[0] : part.split('=')[1] for part in parts }
 
 		# determine handler function and dispatch to it
 
@@ -186,7 +206,7 @@ class Handler(Hs.BaseHTTPRequestHandler):
 		target = lPart[1]
 
 		fn = mpPathFn.get(target, None)
-		if fn is not None and fn(args):
+		if fn is not None and fn(post):
 			return
 
 		self.send_error(404, 'We do not handle this yet')
@@ -202,32 +222,11 @@ class Handler(Hs.BaseHTTPRequestHandler):
 	def OnHome(self, lPart):
 		print("Got home request with {a}".format(a=lPart))
 
-		# this method isn't really any better than just raw writing stuff. :/
-
-		tree = self.TreeBasic()
-		tree.find('head/title').text = 'Code Challenge Home'
-
-		body = tree.find('body')
-		body.append(ET.Element('h1'))
-		body[-1].text = 'Welcome'
-
-		body.append(ET.Element('p'))
-		body[-1].text = 'Coding challenges await you. Are you up for the challenge?'
-
-		body.append(ET.Element('ol'))
-		ol = body[-1]
-
-		ol.append(ET.Element('li'))
-		ol[-1].text = 'Option the first'
-
-		ol.append(ET.Element('li'))
-		ol[-1].text = 'Option numero dos'
-
 		# send back the response
 
 		self.send_response(200)
 		self.end_headers()
-		tree.write(self.wfile, method='html')
+		self.wfile.write(bytes(s_strHome, 'ascii'))
 
 		return True
 
@@ -239,18 +238,16 @@ class Handler(Hs.BaseHTTPRequestHandler):
 
 			self.send_response(200)
 			self.end_headers()
-			self.wfile.write(s_strLogin)
+			self.wfile.write(bytes(s_strLogin, 'ascii'))
 			return True
 
 		# TODO: do we need to do something clever here? Maybe make OnError that takes a reason?
 
 		return False
 
-	def OnLoginPost(lPart):
+	def OnLoginPost(self, post):
 
-		# TODO: get appropriate arguments in here from the post data
-
-		session = SessionCreate(lPart)
+		session = SessionCreate(post.get('username', None), post.get('password', None))
 
 		if session is not None:
 			# username and password sent
@@ -265,7 +262,7 @@ class Handler(Hs.BaseHTTPRequestHandler):
 
 			self.send_response(200)
 			self.end_headers()
-			self.wfile.write(s_strLoginFailed)
+			self.wfile.write(bytes(s_strLoginFailed, 'ascii'))
 
 		return True
 
@@ -313,5 +310,9 @@ if __name__ == '__main__':
 	# NOTE: I'm using a threading version here, although it's not overly clear that
 	#  I actually need to do so for the low level of traffic I'm actually expecting
 
-	server = Hs.ThreadingHTTPServer(('', 8000), Handler)
+	try:
+		server = Hs.ThreadingHTTPServer(('', 8000), Handler)
+	except:
+		server = Hs.HTTPServer(('', 8000), Handler)
+
 	server.serve_forever()
