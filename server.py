@@ -12,9 +12,11 @@ s_strLogin = """
 </head>
 <body>
 	<p>Welcome to the challenge server. You need to log in to continue.</p>
-	<p>TODO: here is a username field</p>
-	<p>TODO: here is a password field</p>
-	<p>TODO: here is a submit button</p>
+	<form action="/login" method="POST">
+		Username: <input type="text" name="username"/></br>
+		Password: <input type="password" name="password"/></br>
+		<input type="submit" value="Login"/>
+	</form>
 </body>
 </html>
 """
@@ -115,11 +117,7 @@ class Handler(Hs.BaseHTTPRequestHandler):
 
 		# Tasks (which I think map to URLs in some way):
 		# - Request login (maybe?)
-		# - Login
-		# - View problem list (include progress?)
-		# - View specific problem
 		# - Post answer to specific problem (only if not already solved?)
-		# - View hint chain on a specific problem
 
 		# Dispatch the request to the appropriate function
 
@@ -168,6 +166,28 @@ class Handler(Hs.BaseHTTPRequestHandler):
 
 	def do_POST(self):
 		print("Requested post '{p}' from '{c}'".format(p=self.path, c=self.client_address))
+		print("  requestline", self.requestline)
+		print("  command", self.command)
+		print("  path", self.path)
+		print("  rfile", self.rfile)
+
+		mpPathFn = {
+				'login' : self.OnLoginPost,
+			}
+
+		# TODO: unpack post data
+
+		args = ()
+
+		# determine handler function and dispatch to it
+
+		lPart = self.path.split('/')
+		assert lPart[0] == ''
+		target = lPart[1]
+
+		fn = mpPathFn.get(target, None)
+		if fn is not None and fn(args):
+			return
 
 		self.send_error(404, 'We do not handle this yet')
 
@@ -215,40 +235,39 @@ class Handler(Hs.BaseHTTPRequestHandler):
 		print("Got login request with {a}".format(a=lPart))
 
 		if len(lPart) == 0:
-			# initial request for logon page
+			# initial request for login page
 
 			self.send_response(200)
 			self.end_headers()
 			self.wfile.write(s_strLogin)
 			return True
 
-		elif len(lPart) == 2:
-			# username and password sent
-
-			# TODO: validate username and password against our database
-			fValid = True
-
-			if fValid:
-				# TODO: if ok, generate session, and send to user page
-
-				session = SessionCreate(lPart)
-
-				self.send_response(200)
-				self.end_headers()
-				self.wfile.write(UserPage(session))
-
-			else:
-				# TODO: if not ok, return login failed page
-
-				self.send_response(200)
-				self.end_headers()
-				self.wfile.write(s_strLoginFailed)
-
-			return True
-
 		# TODO: do we need to do something clever here? Maybe make OnError that takes a reason?
 
 		return False
+
+	def OnLoginPost(lPart):
+
+		# TODO: get appropriate arguments in here from the post data
+
+		session = SessionCreate(lPart)
+
+		if session is not None:
+			# username and password sent
+
+			self.send_response(200)
+			self.end_headers()
+			self.wfile.write(UserPage(session))
+
+		else:
+
+			# failed to login (and establish a session)
+
+			self.send_response(200)
+			self.end_headers()
+			self.wfile.write(s_strLoginFailed)
+
+		return True
 
 	def OnUser(self, lPart):
 
