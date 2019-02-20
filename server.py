@@ -1,5 +1,6 @@
 # python3 code training server
 
+import hashlib
 import http.server as Hs
 import xml.etree.ElementTree as ET
 
@@ -89,19 +90,47 @@ def UserPage(session):
 							challenges=challenges,
 							completed=completed)
 
+# BB (davidm) tune? do something smarter?
+#	- want "slow" algo to convert pw + salt -> hash, such as argon2, etc.
+
+s_cIterHashPass = 50003
+
+def HashPassword(password, salt):
+	abHash = hashlib.pbkdf2_hmac('sha512', password, salt, s_cIterHashPass)
+	return abHash
+
+class User:
+	"""Information about a particular user"""
+
+	def __init__(self):
+		self.username = None
+		self.salt = None
+		self.abHash = None
+
+def UserEnsure(username):
+	"""Find the user with the given username, or generate one if it isn't there."""
+
+	# TODO: where do we pull this stuff from? Look it up somewhere, I guess
+	# TODO: to get timing the same, do we run HashPassword anyway?
+
+	# Not a user we have, so generate one
+
+	user = User()
+	user.username = username
+	user.salt = SaltGen()
+	user.abHash = HashPassword(0, user.salt)
+
+	return user
+
 def SessionCreate(username, password):
 	"""Generate a session for the given login information, if valid, and return the associated session
 	object. Failure means we return None instead."""
 
 	print("session asked about '{u}' with '{p}'".format(u=username, p=password))
 
-	# TODO: validate login credentials
-	#	- based on some reading, it sounds like I should not just salt and hash
-	#	- salting is good, but needs long salt
-	#	- because of long salt, salt needs to be stored along with hash (!!)
-	#	- fast hash algo means that if salt and hash are found, crack happens
-	#	- want "slow" algo to convert pw + salt -> hash, such as argon2, etc.
-	#	- may be able to use hashlib.pdkf2_hmac or hashlib.scrypt to do this, but need more research
+	user = UserEnsure(username)
+	abHash = HashPassword(password, user.salt)
+
 	# TODO: expire any existing sessions for that login
 	# TODO: generate and record a new session object
 	# TODO: return the associated session object
