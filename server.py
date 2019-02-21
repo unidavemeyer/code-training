@@ -2,6 +2,7 @@
 
 import hashlib
 import http.server as Hs
+import random
 import xml.etree.ElementTree as ET
 
 # various pages
@@ -96,8 +97,18 @@ def UserPage(session):
 s_cIterHashPass = 50003
 
 def HashPassword(password, salt):
+	"""Generate the hash given the password and the salt"""
+
 	abHash = hashlib.pbkdf2_hmac('sha512', password, salt, s_cIterHashPass)
 	return abHash
+
+def SaltGen():
+	"""Generate salt value suitable for use with our password system"""
+
+	s_strCh = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+	cCh = len(s_strCh) - 1
+	strOut = ''.join([s_strCh[random.randint(0, cCh)] for i in range(64)])
+	return strOut
 
 class User:
 	"""Information about a particular user"""
@@ -118,7 +129,7 @@ def UserEnsure(username):
 	user = User()
 	user.username = username
 	user.salt = SaltGen()
-	user.abHash = HashPassword(0, user.salt)
+	user.abHash = HashPassword(b'\x00', bytes(user.salt, 'ascii'))
 
 	return user
 
