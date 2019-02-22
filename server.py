@@ -78,11 +78,33 @@ s_strUserPage = """
 def UserPage(session):
 	"""Return the page content formatted with the session for the user's page"""
 
-	# TODO: username as nice text of user name
-	# TODO: challenges as <li> items block (has surrounding <ul> already)
-	# TODO: completed as <li> items block (has surrounding <ul> already>
+	# extract username
 
-	username = 'SampleUser'
+	user = session.user
+	username = user.username
+
+	# extract currently available challenges
+
+	challenges = ''
+	for challenge in user.lChallengeCur:
+		challenges += '<li><a href="{lnk}">{desc}</a></li>\n'.format(
+						lnk=session.SessionizeLink(challenge.link),
+						desc=challenge.title)
+
+	if not challenges:
+		challenges = '<li>No current challenges</li>\n'
+
+	# extract completed challenges
+
+	completed = ''
+	for challenge in user.lChallengeComplete:
+		completed += '<li><a href="{lnk}">{desc}</a></li>\n'.format(
+						lnk=session.SessionizeLink(challenge.link),
+						desc=challenge.title)
+
+	if not completed:
+		completed = '<li>No completed challenges</li>\n'
+
 	challenges = '<li>Nothing yet</li>\n'
 	completed = '<li>Nothing yet</li>\n'
 
@@ -118,13 +140,42 @@ class User:
 		self.salt = None
 		self.abHash = None
 
+def DictUserEnsure():
+	"""Return the dictionary of users, keyed by username, that the system knows about"""
+
+	# TODO: figure out a better place to load this from
+
+	dUser = {}
+
+	if os.path.exists('users.txt'):
+		with open('users.txt', 'r') as fileIn:
+			for line in fileIn:
+				lPart = line.strip().split(',')
+				assert len(lPart) == 3
+
+				# TODO: load up entries and add users
+				# TODO: challenges?
+
+	return dUser
+
 def UserEnsure(username):
 	"""Find the user with the given username, or generate one if it isn't there."""
 
-	# TODO: where do we pull this stuff from? Look it up somewhere, I guess
-	# TODO: to get timing the same, do we run HashPassword anyway?
+	dUser = DictUserEnsure()
+
+	user = dUser.get(username, None)
+	if user is not None:
+
+		# to keep things consistent timing-wise, generate a salt and hash a password
+
+		salt = SaltGen()
+		HashPassword(b'\x00', bytes(user.salt, 'ascii'))
+
+		return user
 
 	# Not a user we have, so generate one
+
+	# BB (davidm) when, if ever, do we add this to the user dictionary?
 
 	user = User()
 	user.username = username
@@ -132,6 +183,20 @@ def UserEnsure(username):
 	user.abHash = HashPassword(b'\x00', bytes(user.salt, 'ascii'))
 
 	return user
+
+class Session:
+	"""Stores information about a particular session (a timed period where a particular
+	user's login is valid)"""
+
+	def __init__(self):
+		self.user = None
+		self.id = None
+
+	def SessionizeLink(self, link):
+		"""Return the "sessionized" version of the given basic link, so that it will provide a legal
+		URL for the particular session to visit that content."""
+
+		return '{sid}/{lnk}'.format(sid=self.id, lnk=link)
 
 def SessionCreate(username, password):
 	"""Generate a session for the given login information, if valid, and return the associated session
