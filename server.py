@@ -1,8 +1,10 @@
 # python3 code training server
 
+import json
 import hashlib
 import http.server as Hs
 import random
+import time
 import xml.etree.ElementTree as ET
 
 # various pages
@@ -124,7 +126,7 @@ def HashPassword(password, salt):
 	abHash = hashlib.pbkdf2_hmac('sha512', password, salt, s_cIterHashPass)
 	return abHash
 
-def SaltGen():
+def SaltGen(count):
 	"""Generate salt value suitable for use with our password system"""
 
 	s_strCh = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -140,6 +142,24 @@ class User:
 		self.salt = None
 		self.abHash = None
 
+def JsonIn(dObj):
+	"""Called with JSON objects (python dictionaries) as they are decoded from the JSON stream.
+	Return value is used instead of the dictionary (so should return dictionary if leaving
+	unchanged)."""
+
+	typeEnc = dObj.get('__type__', None)
+
+	if typeEnc == 'User':
+		user = User()
+		user.username = dObj['username']
+		user.salt = dObj['salt']
+		user.abHash = dObj['hash']
+		return user
+
+	# by default, leave as a dictionary
+
+	return dObj
+
 def DictUserEnsure():
 	"""Return the dictionary of users, keyed by username, that the system knows about"""
 
@@ -149,17 +169,16 @@ def DictUserEnsure():
 
 	if os.path.exists('users.txt'):
 		with open('users.txt', 'r') as fileIn:
-			for line in fileIn:
-				lPart = line.strip().split(',')
-				assert len(lPart) == 3
-
-				# TODO: load up entries and add users
-				# TODO: challenges?
+			dUser = json.load(fileIn, object_hook=JsonIn)
 
 	return dUser
 
+s_countPassSalt = 64
+
 def UserEnsure(username):
 	"""Find the user with the given username, or generate one if it isn't there."""
+
+	global s_countPassSalt
 
 	dUser = DictUserEnsure()
 
@@ -168,7 +187,7 @@ def UserEnsure(username):
 
 		# to keep things consistent timing-wise, generate a salt and hash a password
 
-		salt = SaltGen()
+		salt = SaltGen(s_countPassSalt)
 		HashPassword(b'\x00', bytes(user.salt, 'ascii'))
 
 		return user
@@ -179,7 +198,7 @@ def UserEnsure(username):
 
 	user = User()
 	user.username = username
-	user.salt = SaltGen()
+	user.salt = SaltGen(s_countPassSalt)
 	user.abHash = HashPassword(b'\x00', bytes(user.salt, 'ascii'))
 
 	return user
@@ -191,12 +210,23 @@ class Session:
 	def __init__(self):
 		self.user = None
 		self.id = None
+		self.expire = None
 
 	def SessionizeLink(self, link):
 		"""Return the "sessionized" version of the given basic link, so that it will provide a legal
 		URL for the particular session to visit that content."""
 
 		return '{sid}/{lnk}'.format(sid=self.id, lnk=link)
+
+# TODO: convert these into a class instead, with an ensure function, so that we can load
+#  existing session information from disk
+# TODO: update JsonIn for serialize in on sessions
+# TODO: update JsonOut for serialize out on sessions
+
+g_mpUserSession = {}
+g_mpIdSession = {}
+s_dTSessionExpire = 3600	# TODO: is 1 hour enough?
+s_countSid = 8
 
 def SessionCreate(username, password):
 	"""Generate a session for the given login information, if valid, and return the associated session
@@ -207,21 +237,58 @@ def SessionCreate(username, password):
 	user = UserEnsure(username)
 	abHash = HashPassword(password, user.salt)
 
-	# TODO: expire any existing sessions for that login
-	# TODO: generate and record a new session object
-	# TODO: return the associated session object
+	if user.abHash != abHash:
+		# password didn't match
+		return None
 
-	return None
+	global g_mpUserSession
+	global g_mpIdSession
+	global s_dTSessionExpire
+
+	# determine a new session ID
+
+	sid = SaltGen(s_countSid)
+	while g_mpIdSession.get(sid, None) is not None:
+		sid = SaltGen(s_countSid)
+
+	# clear existing session and create a new one
+
+	session = Session()
+	session.user = user
+	session.id = sid
+	session.expire = time.time() + s_dTSessionExpire
+
+	g_mpUserSession[user.username] = session
+	g_mpIdSession[session.id] = session
+
+	# TODO: serialize out session data so other invocations can find it
+
+	return session
 
 def SessionFind(sid):
 	"""Look up the session with the given sid. If the session cannot be found or has timed out, will
 	return None instead."""
 
-	# TODO: look up the given session by the given sid
-	# TODO: validate the expiration details for the session
-	# TODO: return the associated session object
+	global g_mpIdSession
+	global g_mpUserSession
 
-	return None
+	# check for valid session
+
+	session = g_mpIdSession.get(sid, None)
+	if session is None:
+		return None
+
+	# check for session expiration
+
+	timeNow = time.time()
+	if session.expire < timeNow:
+		g_mpIdSession[sid] = None
+		g_mpUserSession[session.user.username] = None
+		return None
+
+	# send back the session
+
+	return session
 
 
 
